@@ -45,8 +45,8 @@
 #include "index.html.h"
 #include "main.js.h"
 
-#define WIFI_SSID "YOURSSID"
-#define WIFI_PASSWORD "YOURPASSWORD"
+#define WIFI_SSID "***"
+#define WIFI_PASSWORD "***"
 
 //#define STATIC_IP                       // uncomment for static IP, set IP below
 #ifdef STATIC_IP
@@ -59,10 +59,10 @@
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 
-#define LED_PIN 2                       // 0 = GPIO0, 2=GPIO2
-#define LED_COUNT 24
+#define LED_PIN D6                       // 0 = GPIO0, 2=GPIO2
+#define LED_COUNT 50
 
-#define WIFI_TIMEOUT 30000              // checks WiFi every ...ms. Reset after this time, if WiFi cannot reconnect.
+#define WIFI_TIMEOUT 5000              // checks WiFi every ...ms. Reset after this time, if WiFi cannot reconnect.
 #define HTTP_PORT 80
 
 #define DEFAULT_COLOR 0xFF5900
@@ -73,10 +73,43 @@
 #define BRIGHTNESS_STEP 15              // in/decrease brightness by this amount per click
 #define SPEED_STEP 10                   // in/decrease brightness by this amount per click
 
+#define TIMER_MS 15000
+
+byte demo_modes[][2] = {
+  {FX_MODE_COLOR_WIPE_RANDOM, 2},
+  {FX_MODE_SINGLE_DYNAMIC, 3},
+  {FX_MODE_MULTI_DYNAMIC, 3},
+  {FX_MODE_RAINBOW, 2},
+  {FX_MODE_RAINBOW_CYCLE, 2},
+  {FX_MODE_SCAN, 2},
+  {FX_MODE_FADE, 2},
+  {FX_MODE_THEATER_CHASE_RAINBOW, 2},
+  {FX_MODE_TWINKLE_RANDOM, 3},
+  {FX_MODE_TWINKLE_FADE_RANDOM, 3},
+  {FX_MODE_CHASE_RANDOM, 2},
+  {FX_MODE_CHASE_RAINBOW, 2},
+  {FX_MODE_CHASE_RAINBOW_WHITE, 2},
+  {FX_MODE_CHASE_BLACKOUT_RAINBOW, 2},
+  {FX_MODE_COLOR_SWEEP_RANDOM, 3},
+  {FX_MODE_RUNNING_RANDOM, 2},
+  {FX_MODE_LARSON_SCANNER, 2},
+  {FX_MODE_COMET, 2},
+  {FX_MODE_FIREWORKS_RANDOM, 3},  
+  {FX_MODE_FIRE_FLICKER, 1},
+  {FX_MODE_MERRY_CHRISTMAS, 3} 
+  };
+
+int demo_modes_count = sizeof(demo_modes)/2;
+
+unsigned long last_change = 0;
+unsigned int cur_mode = 0;
+bool demo_mode = true;
+
 unsigned long last_wifi_check_time = 0;
 String modes = "";
 
-WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
 ESP8266WebServer server = ESP8266WebServer(HTTP_PORT);
 
 
@@ -91,9 +124,10 @@ void setup(){
 
   Serial.println("WS2812FX setup");
   ws2812fx.init();
-  ws2812fx.setMode(DEFAULT_MODE);
-  ws2812fx.setColor(DEFAULT_COLOR);
-  ws2812fx.setSpeed(DEFAULT_SPEED);
+  //ws2812fx.setMode(DEFAULT_MODE);
+  //ws2812fx.setColor(DEFAULT_COLOR);
+  //ws2812fx.setSpeed(DEFAULT_SPEED);
+  update_demo();
   ws2812fx.setBrightness(DEFAULT_BRIGHTNESS);
   ws2812fx.start();
 
@@ -119,7 +153,7 @@ void loop() {
   server.handleClient();
   ws2812fx.service();
 
-  if(now - last_wifi_check_time > WIFI_TIMEOUT) {
+  if(now - last_wifi_check_time > WIFI_TIMEOUT*30) {
     Serial.print("Checking WiFi... ");
     if(WiFi.status() != WL_CONNECTED) {
       Serial.println("WiFi connection lost. Reconnecting...");
@@ -129,6 +163,34 @@ void loop() {
     }
     last_wifi_check_time = now;
   }
+
+  if(demo_mode) {
+    if(now - last_change > TIMER_MS) {
+      update_demo();
+      last_change = now;
+      //Serial.print(F("Speed is: "));
+      //Serial.println(ws2812fx.getSpeed());
+      //Serial.print(F("Set mode to: "));
+      //Serial.print(ws2812fx.getMode());
+      //Serial.print(" - ");
+      //Serial.println(ws2812fx.getModeName(ws2812fx.getMode()));
+
+      //if (cur_mode > sizeof(demo_modes)-1) {
+      //  cur_mode = 0;
+      //}; 
+      //cur_mode++;
+    }
+  }
+}
+
+void update_demo() {
+  while (demo_modes[cur_mode][0] == ws2812fx.getMode() || cur_mode == 0){ //exclude repeat same mode
+    cur_mode = random(demo_modes_count);
+  };
+  int r = random(256);int g = random(256);int b = random(256);
+  ws2812fx.setMode(demo_modes[cur_mode][0]);
+  ws2812fx.setSpeed(demo_modes[cur_mode][1] * 80);
+  ws2812fx.setColor(r, g, b);  
 }
 
 
@@ -156,8 +218,9 @@ void wifi_setup() {
       Serial.println();
       Serial.print("Tried ");
       Serial.print(WIFI_TIMEOUT);
-      Serial.print("ms. Resetting ESP now.");
-      ESP.reset();
+      //Serial.print("ms. Resetting ESP now.");
+      //ESP.reset();
+      return;
     }
   }
 
@@ -215,6 +278,7 @@ void srv_handle_set() {
     if(server.argName(i) == "m") {
       uint8_t tmp = (uint8_t) strtol(&server.arg(i)[0], NULL, 10);
       ws2812fx.setMode(tmp % ws2812fx.getModeCount());
+      demo_mode = false;
     }
 
     if(server.argName(i) == "b") {
@@ -230,6 +294,13 @@ void srv_handle_set() {
         ws2812fx.decreaseSpeed(SPEED_STEP);
       } else {
         ws2812fx.increaseSpeed(SPEED_STEP);
+      }
+    }
+    if(server.argName(i) == "d") {
+      if(server.arg(i)[0] == '-') {
+        demo_mode = false;
+      } else {
+        demo_mode = true;
       }
     }
   }
