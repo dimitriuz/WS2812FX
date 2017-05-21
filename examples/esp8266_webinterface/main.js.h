@@ -12,7 +12,24 @@ function handle_M_B_S(e) {
       el.classList.remove('active');
       name = e.target.className;
     });
+    
+    elems = document.querySelectorAll('#demo li a');
+    [].forEach.call(elems, function(el) {
+      el.classList.remove('active'); });
+      
     e.target.classList.add('active');
+    }
+
+  if(e.target.className.indexOf('d') > -1) {
+    elems = document.querySelectorAll('#demo li a');
+    [].forEach.call(elems, function(el) {
+      el.classList.remove('active');
+      name = e.target.className;
+    });
+    e.target.classList.add('active');
+    elems = document.querySelectorAll('#mode li a');
+    [].forEach.call(elems, function(el) {
+      el.classList.remove('active'); });
   }
   submitVal(name, val);
 }
@@ -96,7 +113,7 @@ function drawColorbar(rgb = [0, 0, 0]) {
 function setup(){
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
-    if (xhttp.readyState == 4 && xhttp.status == 200) {
+    if (xhttp.readyState == 4 && xhttp.status == 200) {    
       document.getElementById('mode').innerHTML = xhttp.responseText;
       elems = document.querySelectorAll('ul li a'); // adds listener also to existing s and b buttons
       [].forEach.call(elems, function(el) {
