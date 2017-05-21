@@ -73,6 +73,9 @@ const char index_html[] PROGMEM = R"=====(
   <h1>WS2812FX Control</h1>
   <canvas id='colorbar' width='75' height='1080'></canvas>
   <div id='controls'>
+    <ul id='demo'>
+      <li><a href='#' class='d active' id='+'>DEMO MODE</a></li>
+    </ul>
     <ul id='mode'></ul>
 
     <ul id='brightness'>
